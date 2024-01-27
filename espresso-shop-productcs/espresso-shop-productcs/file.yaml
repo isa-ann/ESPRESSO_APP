@@ -1,0 +1,85 @@
+---
+# Source: espresso-shop-productcs/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: espresso-shop-product-catalog-sa
+  labels:
+    version: v1
+---
+# Source: espresso-shop-productcs/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: espresso-shop-product-catalog-svc
+  labels:
+    version: v1
+spec:
+  type: NodePort
+  ports:
+    - port: 8091
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: espresso-shop-productcs
+    app.kubernetes.io/instance: release-name
+---
+# Source: espresso-shop-productcs/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: espresso-shop-product-catalog
+  labels:
+    version: v1
+spec:
+  selector:
+    matchLabels:
+      version: v1
+  template:
+    metadata:
+      labels:
+        version: v1
+    spec:
+      serviceAccountName: espresso-shop-product-catalog-sa
+      securityContext:
+        {}
+      containers:
+        - name: espresso-shop-productcs
+          securityContext:
+            {}
+          image: "devopseasylearning/espresso-shop-product-catalog-annie:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP    
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: espresso-shop-productcs/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: espresso-shop-product-catalog
+  labels:
+    version: v1
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: espresso-shop-product-catalog
+  minReplicas: 1
+  maxReplicas: 100
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80

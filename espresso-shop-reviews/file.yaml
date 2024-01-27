@@ -1,0 +1,192 @@
+---
+# Source: espresso-shop-reviews/templates/serviceaccount1.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: espresso-shop-reviews-v1-sa
+  labels:
+    version: v1
+---
+# Source: espresso-shop-reviews/templates/serviceaccount2.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: espresso-shop-reviews-v2-sa
+  labels:
+    version: v2
+---
+# Source: espresso-shop-reviews/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: espresso-shop-reviews-v1
+type: Opaque
+data:
+  username: postgres
+  password: cG9zdGdyZXMtcG9zdGdyZXNxbC1wYXNzd29yZA==
+  database: postgres-postgresql
+---
+# Source: espresso-shop-reviews/templates/configmap1.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: espresso-shop-reviews-v1-cm
+data:
+  SERVICE_VERSION: v1
+---
+# Source: espresso-shop-reviews/templates/configmap2.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: espresso-shop-reviews-v2-cm
+data:
+  SERVICE_VERSION: v2
+---
+# Source: espresso-shop-reviews/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: espresso-shop-reviews-svc
+  labels:
+    version: v1
+    version: v2
+spec:
+  type: NodePort
+  ports:
+    - port: 8092
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    version: v1
+    version: v2
+---
+# Source: espresso-shop-reviews/templates/deployment1.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: espresso-shop-reviews-v1
+  labels:
+    version: v1
+spec:
+  selector:
+    matchLabels:
+      version: v1
+  template:
+    metadata:
+      labels:
+        version: v1
+    spec:
+      serviceAccountName: espresso-shop-reviews-v1-sa
+      securityContext:
+        {}
+      containers:
+        - name: espresso-shop-reviews
+          securityContext:
+            {}
+          image: "devopseasylearning/espresso-shop-reviews-annie:latest"
+          imagePullPolicy: Always
+          envFrom:
+          - secretRef:
+              name: espresso-shop-reviews-v1
+          env:
+            - name: SERVICE_VERSION
+              value: v1
+          ports:
+            - name: http
+              containerPort: 8092
+              protocol: TCP    
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: espresso-shop-reviews/templates/deployment2.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: espresso-shop-reviews-v2
+  labels:
+    version: v2
+spec:
+  selector:
+    matchLabels:
+      version: v2
+  template:
+    metadata:
+      labels:
+        version: v2
+    spec:
+      serviceAccountName: espresso-shop-reviews-v2-sa
+      securityContext:
+        {}
+      containers:
+        - name: espresso-shop-reviews
+          securityContext:
+            {}
+          image: "devopseasylearning/espresso-shop-reviews-annie:latest"
+          imagePullPolicy: Always
+          envFrom:
+            - secretRef:
+                name: espresso-shop-reviews-v1
+          env:
+            - name: SERVICE_VERSION
+              value: v2
+          ports:
+            - name: http
+              containerPort: 8092
+              protocol: TCP    
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: espresso-shop-reviews/templates/hpa1.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: espresso-shop-reviews-v1
+  labels:
+    version: v1 
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: espresso-shop-reviews-v1
+  minReplicas: 1
+  maxReplicas: 100
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+# Source: espresso-shop-reviews/templates/hpa2.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: espresso-shop-reviews-v2
+  labels:
+    version: v2 
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: espresso-shop-reviews-v2
+  minReplicas: 1
+  maxReplicas: 100
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80

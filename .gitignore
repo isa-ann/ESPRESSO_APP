@@ -1,0 +1,4 @@
+*.tgz
+*/charts
+*/tmp
+*/templates/*.yaml
